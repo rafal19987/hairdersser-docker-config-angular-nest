@@ -26,8 +26,8 @@ services:
     env_file:
       - .env
     environment:
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
     ports:
       - '3000:3000'
     depends_on:
@@ -58,8 +58,8 @@ services:
     env_file:
       - .env
     environment:
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
     command: node dist/database/seed.js
