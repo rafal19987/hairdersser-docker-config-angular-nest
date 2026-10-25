@@ -1,6 +1,6 @@
 # 💈 Hairdresser Management System
 
-An admin panel for managing a hairdressing salon — users, roles, permissions, services, and appointment calendar.
+An admin panel for managing a hairdressing salon — users, roles, permissions, services, and appointment calendar — plus the public salon website with online booking.
 
 ## Project Structure
 
@@ -12,6 +12,9 @@ An admin panel for managing a hairdressing salon — users, roles, permissions, 
 ├── backend/
 │   ├── Dockerfile
 │   └── src/
+├── landing-page/        # public website: Next.js + Sanity CMS
+│   ├── Dockerfile
+│   └── src/
 ├── docker-compose.yaml
 ├── .env
 └── .env.example
@@ -19,15 +22,16 @@ An admin panel for managing a hairdressing salon — users, roles, permissions, 
 
 ## Running with Docker (recommended)
 
-### 1. Create folder structure and clone the repositories
+### 1. Clone the repository with its submodules
 
-In root folder create folder eg. hairdresser and work from this catalog:
+`backend`, `frontend` and `landing-page` are git submodules tracking their `develop` branches:
 
 ```bash
-git clone https://github.com/rafal19987/hairdersser-docker-config-angular-nest.git ./
-git clone https://github.com/rafal19987/Hairdresser-admin-front-angular-.git ./frontend
-git clone https://github.com/rafal19987/Hairdresser-backend-Nest.js.git ./backend
+git clone --recurse-submodules https://github.com/rafal19987/hairdersser-docker-config-angular-nest.git hairdresser
+cd hairdresser
 ```
+
+Already cloned without submodules? Run `git submodule update --init`.
 
 ### 2. Configure environment variables
 
@@ -64,6 +68,12 @@ APP_URL=http://localhost
 API_URL=http://localhost:3000
 FRONTEND_PORT=80
 
+# Public website (landing-page) — Sanity project settings are needed at build time
+LANDING_URL=http://localhost:3001
+LANDING_PORT=3001
+NEXT_PUBLIC_SANITY_PROJECT_ID=your_sanity_project_id
+NEXT_PUBLIC_SANITY_DATASET=production
+
 # Seed — initial admin credentials
 SEED_ADMIN_EMAIL=admin@hairdresser.pl
 SEED_ADMIN_PASSWORD=Admin1234!
@@ -88,6 +98,8 @@ All services should have status `running`, except `seed` which shows `exited (0)
 | Service     | Address                        |
 | ----------- | ------------------------------ |
 | Frontend    | http://localhost               |
+| Website     | http://localhost:3001          |
+| Sanity CMS  | http://localhost:3001/cms      |
 | Backend API | http://localhost:3000/api      |
 | Swagger     | http://localhost:3000/api/docs |
 
@@ -155,6 +167,17 @@ Frontend available at: http://localhost:4200
 
 > In dev mode the frontend communicates with the backend via `http://localhost:3000` (configured in `src/environments/environment.ts`).
 
+### Website (landing-page)
+
+```bash
+cd landing-page
+cp .env.example .env.local   # fill in the Sanity project id and dataset
+npm install
+npm run dev
+```
+
+Website available at: http://localhost:3001, Sanity Studio at http://localhost:3001/cms
+
 ---
 
 ## Environment Variables Reference
@@ -188,6 +211,15 @@ Frontend available at: http://localhost:4200
 | `API_URL`       | Backend address | `http://localhost:3000` |
 | `FRONTEND_PORT` | Frontend port   | `80`                    |
 
+### Website (build-time)
+
+| Variable                        | Description                       | Example                 |
+| ------------------------------- | --------------------------------- | ----------------------- |
+| `LANDING_URL`                   | Public address of the website     | `http://localhost:3001` |
+| `LANDING_PORT`                  | Website port                      | `3001`                  |
+| `NEXT_PUBLIC_SANITY_PROJECT_ID` | Sanity project id                 | —                       |
+| `NEXT_PUBLIC_SANITY_DATASET`    | Sanity dataset                    | `production`            |
+
 ### Seed
 
 | Variable              | Description            | Example                |
@@ -211,7 +243,7 @@ Frontend available at: http://localhost:4200
 
 Role-based access control with granular permission management.
 
-Available resources: `users`, `roles`, `services`, `calendar`
+Available resources: `users`, `roles`, `services`, `calendar`, `clients`, `settings`, `audit-logs`
 
 Available actions: `none`, `create`, `read`, `write`, `delete`, `all`, `admin`
 
