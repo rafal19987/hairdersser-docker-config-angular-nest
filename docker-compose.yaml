@@ -86,6 +86,20 @@ services:
       - app-network
     restart: unless-stopped
 
+  landing:
+    build:
+      context: ./landing-page
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_HOST_URL: ${LANDING_URL:-http://localhost:3001}
+        NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
+        NEXT_PUBLIC_SANITY_DATASET: ${NEXT_PUBLIC_SANITY_DATASET:-production}
+    ports:
+      - '${LANDING_PORT:-3001}:3001'
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   mysql_data:
 
