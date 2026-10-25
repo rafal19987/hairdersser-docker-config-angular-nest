@@ -94,6 +94,8 @@ services:
         NEXT_PUBLIC_HOST_URL: ${LANDING_URL:-http://localhost:3001}
         NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
         NEXT_PUBLIC_SANITY_DATASET: ${NEXT_PUBLIC_SANITY_DATASET:-production}
+        # Used by the browser, so it must be the public API address
+        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3000}/api
     ports:
       - '${LANDING_PORT:-3001}:3001'
     networks:
