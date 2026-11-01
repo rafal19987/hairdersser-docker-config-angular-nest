@@ -40,8 +40,10 @@ services:
       DOMAIN: ${DOMAIN}
       DOCS_USER: ${DOCS_USER:?}
       DOCS_PASSWORD_HASH: ${DOCS_PASSWORD_HASH:?}
+    # The directory, not the file: git replaces the file on update and a file mount would keep the old one
+    command: caddy run --config /etc/caddy/site/Caddyfile --adapter caddyfile
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./:/etc/caddy/site:ro
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
