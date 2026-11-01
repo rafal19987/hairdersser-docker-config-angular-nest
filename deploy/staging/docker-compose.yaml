@@ -1,0 +1,124 @@
+# Staging server: images built by the Deploy staging workflow, secrets in /opt/hairdresser/.env.
+# Public through Caddy (ports 80 and 443); Portainer and Mailpit listen on 127.0.0.1 only,
+# reach them through an SSH tunnel.
+
+name: hairdresser-staging
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  PORT: 3000
+  TRUST_PROXY: uniquelocal
+  MYSQL_HOST: mysql
+  MYSQL_PORT: 3306
+  MYSQL_DATABASE: hairdresser
+  MYSQL_USERNAME: hairdresser
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+  MYSQL_SYNCHRONIZE: 'false'
+  JWT_ACCESS_TOKEN_SECRET_KEY: ${JWT_ACCESS_TOKEN_SECRET_KEY:?}
+  JWT_REFRESH_TOKEN_SECRET_KEY: ${JWT_REFRESH_TOKEN_SECRET_KEY:?}
+  JWT_CLIENT_ACCESS_TOKEN_SECRET_KEY: ${JWT_CLIENT_ACCESS_TOKEN_SECRET_KEY:?}
+  JWT_ACCESS_TOKEN_EXPIRES_IN: 1h
+  JWT_REFRESH_TOKEN_EXPIRES_IN: 7d
+  MAIL_TRANSPORT: smtp
+  SMTP_HOST: mailpit
+  SMTP_PORT: 1025
+  MAIL_FROM: salon@${DOMAIN:?}
+  APP_URL: https://admin.${DOMAIN}
+  WEBSITE_URL: https://${DOMAIN}
+  CLIENT_BOOKING_MANAGE_URL: https://${DOMAIN}/moje-wizyty
+  CLIENT_ACCOUNT_URL: https://${DOMAIN}/konto
+  CORS_ORIGINS: https://${DOMAIN},https://admin.${DOMAIN}
+
+services:
+  caddy:
+    image: caddy:2.10
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+      MYSQL_DATABASE: hairdresser
+      MYSQL_USER: hairdresser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      timeout: 5s
+      retries: 20
+      interval: 3s
+      start_period: 30s
+    restart: unless-stopped
+
+  # Catches every mail the backend sends: http://localhost:8025 through the tunnel
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - '127.0.0.1:8025:8025'
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/rafal19987/hairdresser-backend:staging
+    environment: *backend-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000/api/docs']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  # Run by deploy.sh after every start; it skips what already exists
+  seed:
+    image: ghcr.io/rafal19987/hairdresser-backend:staging
+    profiles: [seed]
+    environment:
+      <<: *backend-env
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    command: node dist/database/seed.js
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: 'no'
+
+  frontend:
+    image: ghcr.io/rafal19987/hairdresser-admin:staging
+    restart: unless-stopped
+
+  landing:
+    image: ghcr.io/rafal19987/hairdresser-website:staging
+    restart: unless-stopped
+
+  # https://localhost:9443 through the tunnel
+  portainer:
+    image: portainer/portainer-ce:lts
+    ports:
+      - '127.0.0.1:9443:9443'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  mysql_data:
+  portainer_data:

@@ -1,0 +1,91 @@
+name: Deploy staging
+
+# Builds the three apps from the submodule pointers on master, pushes the images to ghcr.io
+# and restarts the staging server. Runs after every pointer update (an app merged to develop),
+# after a change to the deployment files, and by hand. Skipped until STAGING_DOMAIN is set.
+on:
+  workflow_run:
+    workflows: [Update submodules]
+    types: [completed]
+  push:
+    branches: [master]
+    paths: ['deploy/staging/**', '.github/workflows/deploy-staging.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }}
+    if: vars.STAGING_DOMAIN != '' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: hairdresser-backend
+            context: backend
+            build-args: ''
+          - image: hairdresser-admin
+            context: frontend
+            build-args: |
+              API_URL=https://api.${{ vars.STAGING_DOMAIN }}
+          - image: hairdresser-website
+            context: landing-page
+            build-args: |
+              NEXT_PUBLIC_HOST_URL=https://${{ vars.STAGING_DOMAIN }}
+              NEXT_PUBLIC_API_URL=https://api.${{ vars.STAGING_DOMAIN }}/api
+              NEXT_PUBLIC_SANITY_PROJECT_ID=${{ vars.NEXT_PUBLIC_SANITY_PROJECT_ID }}
+              NEXT_PUBLIC_SANITY_DATASET=${{ vars.NEXT_PUBLIC_SANITY_DATASET || 'production' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+          submodules: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          build-args: ${{ matrix.build-args }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:staging
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://${{ vars.STAGING_DOMAIN }}
+    steps:
+      # The server lets this key run deploy.sh only; the token lets it pull the images
+      - name: Restart the stack on the server
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+          HOST: ${{ vars.STAGING_HOST }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/staging
+          chmod 600 ~/.ssh/staging
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s %s\n' "$GITHUB_ACTOR" "$REGISTRY_TOKEN" \
+            | ssh -i ~/.ssh/staging -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$HOST"

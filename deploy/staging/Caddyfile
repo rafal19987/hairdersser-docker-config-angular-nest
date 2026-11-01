@@ -1,0 +1,16 @@
+# Caddy gets and renews the HTTPS certificates for these addresses on its own
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy landing:3001
+}
+
+admin.{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy frontend:80
+}
+
+api.{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy backend:3000
+}
