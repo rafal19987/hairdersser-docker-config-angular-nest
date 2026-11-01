@@ -3,3 +3,7 @@
 .env
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+# End-to-end test dependencies and results
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
