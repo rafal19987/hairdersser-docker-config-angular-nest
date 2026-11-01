@@ -100,8 +100,8 @@ Server ready.
   Admin panel  https://admin.$domain
   API          https://api.$domain/api/docs
 
-GitHub, root repository → Settings → Environments → staging
-(Settings → Secrets and variables → Actions works too)
+GitHub, root repository → Settings → Secrets and variables → Actions
+(repository variables and secrets, the build job does not see environment ones)
 
   Variable  STAGING_DOMAIN           $domain
   Variable  STAGING_HOST             $public_ip
