@@ -36,3 +36,15 @@ bash scripts/test-env.sh logs backend
 - Read mails through the Mailpit API instead of the database: `GET http://localhost:8025/api/v1/messages`, then
   `GET /api/v1/message/<ID>`, whose `HTML` field holds activation, reset and manage links.
 - Data created while testing disappears with `reset`; outputs go to `.playwright-cli/`, which git ignores.
+
+# End-to-end tests
+
+`e2e/` holds Playwright tests that run across the website, the admin panel and Mailpit against the test environment.
+
+```bash
+cd e2e && npm install                          # first time only; uses the installed Chrome
+PLAYWRIGHT_HTML_OPEN=never npx playwright test
+npx playwright test --headed                   # watch it in a browser window
+```
+
+Each run creates its own client with a unique email, so it doesn't need a reset first.
