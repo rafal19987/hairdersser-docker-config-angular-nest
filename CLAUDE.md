@@ -48,3 +48,26 @@ npx playwright test --headed                   # watch it in a browser window
 ```
 
 Each run creates its own client with a unique email, so it doesn't need a reset first.
+
+# Branches and pull requests
+
+`master` and `develop` are protected by GitHub rulesets: a direct push is rejected, every change goes through a pull
+request.
+
+| Repository | Branch from | Pull request into |
+| --- | --- | --- |
+| `backend`, `frontend`, `landing-page` | `develop` | `develop` |
+| root (this repository) | `master` | `master` |
+
+- Name branches by kind: `feature/…`, `fix/…`, `chore/…`, `ci/…`, `docs/…`.
+- Right after pushing a branch, open its pull request with `gh pr create --base <develop|master> --head <branch>` and
+  give the user its link. Never merge pull requests; the user reviews and merges them.
+- Title: the first line of the commit message. Body: what changed and why, how it was tested, and what must be merged
+  first. End the body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+- A change spanning several repositories gets one pull request per repository; list them all with their merge order.
+- Open a release pull request `develop` → `master` in an app only when the user asks for it; it must be merged with a
+  merge commit, not squashed, so the two branches keep a shared history.
+- Don't commit submodule pointers in the root repository: after a merge to `develop`, the `Update submodules`
+  workflow opens and merges a pull request with the new pointers.
+- If `gh` isn't available, give the user the compare link GitHub prints on push
+  (`https://github.com/<owner>/<repo>/pull/new/<branch>`) instead.
