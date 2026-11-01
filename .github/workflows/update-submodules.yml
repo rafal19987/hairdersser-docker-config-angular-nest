@@ -22,13 +22,14 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: master
-          submodules: true
 
+      # A shallow submodule checkout fetches only the default branch, so --remote
+      # could not find develop; cloning the submodules here fetches every branch
       - name: Point submodules at the latest develop
-        run: git submodule update --remote
+        run: git submodule update --init --remote
 
       - name: Commit the new pointers
         env:
