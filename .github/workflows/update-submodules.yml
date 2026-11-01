@@ -1,0 +1,46 @@
+name: Update submodules
+
+# Points backend, frontend and landing-page at their latest develop.
+# The app repositories trigger it after a merge to develop (repository_dispatch);
+# the daily run catches a missed trigger, and it can also be started by hand.
+on:
+  repository_dispatch:
+    types: [app-develop-updated]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Merges in two apps close together must not push over each other
+concurrency:
+  group: update-submodules
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          submodules: true
+
+      - name: Point submodules at the latest develop
+        run: git submodule update --remote
+
+      - name: Commit the new pointers
+        env:
+          TRIGGERED_BY: ${{ github.event.client_payload.repository || github.event_name }}
+        run: |
+          if git diff --quiet; then
+            echo "Submodules already point at the latest develop"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend frontend landing-page
+          git commit -m "chore: update submodules to latest develop" -m "Triggered by: $TRIGGERED_BY" -m "$(git submodule status)"
+          git push origin HEAD:master
