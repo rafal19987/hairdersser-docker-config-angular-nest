@@ -1,0 +1,39 @@
+version: 2
+
+# Submodule pointers are left out: the Update submodules workflow keeps them on the latest develop
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      e2e:
+        patterns: ['*']
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    # A new MySQL major needs a planned data migration
+    ignore:
+      - dependency-name: mysql
+        update-types: ['version-update:semver-major']
