@@ -60,6 +60,8 @@ the server; Claude prepares them and doesn't log in there.
 - Secrets live only on the server in `/opt/hairdresser/.env`; GitHub holds the domain, the host and the deploy key.
 - Website at `https://<domain>`, admin at `https://admin.<domain>`, API at `https://api.<domain>`. Portainer
   (`127.0.0.1:9443`) and Mailpit (`127.0.0.1:8025`) are reachable only through an SSH tunnel.
+- `https://api.<domain>/api/docs` asks for a login; `deploy.sh` generates it into `.env` (`DOCS_USER`,
+  `DOCS_PASSWORD`). The rest of the API stays open for the website and the admin panel.
 
 # Branches and pull requests
 

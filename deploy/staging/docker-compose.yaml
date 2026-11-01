@@ -38,6 +38,8 @@ services:
       - '443:443/udp'
     environment:
       DOMAIN: ${DOMAIN}
+      DOCS_USER: ${DOCS_USER:?}
+      DOCS_PASSWORD_HASH: ${DOCS_PASSWORD_HASH:?}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

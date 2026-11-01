@@ -12,5 +12,12 @@ admin.{$DOMAIN} {
 
 api.{$DOMAIN} {
 	encode zstd gzip
+
+	# Swagger UI and its JSON/YAML; the API itself stays open for the website and the admin panel
+	@docs path /api/docs*
+	basic_auth @docs {
+		{$DOCS_USER} {$DOCS_PASSWORD_HASH}
+	}
+
 	reverse_proxy backend:3000
 }

@@ -4,9 +4,22 @@
 #     "<user> <token>" on stdin so Docker can pull images from ghcr.io
 #   - by hand: sudo -u deploy /opt/hairdresser/repo/deploy/staging/deploy.sh
 #
-# Wrapped in main() so bash reads the whole script before `git reset` replaces it on disk.
+# Wrapped in main(), called on the last line together with exit, so bash has read the whole
+# script before `git reset` replaces it on disk.
 
 set -euo pipefail
+
+# Caddy asks for this login on https://api.<domain>/api/docs; the password stays in .env next to the hash
+ensure_docs_login() {
+  local env_file=$1 password hash
+  grep -q '^DOCS_PASSWORD_HASH=' "$env_file" && return
+
+  password=$(openssl rand -hex 12)
+  hash=$(docker run --rm caddy:2.10 caddy hash-password --plaintext "$password")
+  # Single quotes keep Docker Compose from reading the $ signs of the hash as variables
+  printf "\n# API docs login, added by deploy.sh\nDOCS_USER=docs\nDOCS_PASSWORD=%s\nDOCS_PASSWORD_HASH='%s'\n" \
+    "$password" "$hash" >> "$env_file"
+}
 
 main() {
   local root=/opt/hairdresser
@@ -27,6 +40,8 @@ main() {
     fi
   fi
 
+  ensure_docs_login "$root/.env"
+
   local compose=(docker compose -f deploy/staging/docker-compose.yaml --env-file "$root/.env")
   "${compose[@]}" pull --quiet
   "${compose[@]}" up --detach --remove-orphans --wait --wait-timeout 300
@@ -36,5 +51,4 @@ main() {
   echo "Deployed $(git rev-parse --short HEAD)"
 }
 
-main "$@"
-exit
+main "$@"; exit
