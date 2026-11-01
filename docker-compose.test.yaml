@@ -1,0 +1,120 @@
+# Test environment for clicking through the apps (people and Claude Code).
+# Runs as its own project, so the development database stays untouched.
+# Every value here is a throwaway test value; nothing is read from .env
+# except the public Sanity project id used to build the website.
+#
+#   bash scripts/test-env.sh up      start (stops the dev stack, it uses the same ports)
+#   bash scripts/test-env.sh reset   fresh database and mailbox
+#   bash scripts/test-env.sh down    stop
+
+name: hairdresser-test
+
+x-backend-env: &backend-env
+  NODE_ENV: development
+  PORT: 3000
+  MYSQL_HOST: mysql
+  MYSQL_PORT: 3306
+  MYSQL_DATABASE: hairdresser_test
+  MYSQL_USERNAME: test
+  MYSQL_PASSWORD: test
+  MYSQL_SYNCHRONIZE: 'false'
+  JWT_ACCESS_TOKEN_SECRET_KEY: test-access-secret
+  JWT_REFRESH_TOKEN_SECRET_KEY: test-refresh-secret
+  JWT_CLIENT_ACCESS_TOKEN_SECRET_KEY: test-client-access-secret
+  JWT_ACCESS_TOKEN_EXPIRES_IN: 10h
+  JWT_REFRESH_TOKEN_EXPIRES_IN: 7d
+  # Every mail lands in Mailpit: http://localhost:8025
+  MAIL_TRANSPORT: smtp
+  SMTP_HOST: mailpit
+  SMTP_PORT: 1025
+  MAIL_FROM: salon@test.local
+  APP_URL: http://localhost
+  WEBSITE_URL: http://localhost:3001
+  CLIENT_BOOKING_MANAGE_URL: http://localhost:3001/moje-wizyty
+  CLIENT_ACCOUNT_URL: http://localhost:3001/konto
+  # Built admin, `ng serve` and the website
+  CORS_ORIGINS: http://localhost,http://localhost:4200,http://localhost:3001
+  RATE_LIMIT_ENABLED: 'false'
+
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: hairdresser_test
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+    ports:
+      - '3307:3306'
+    # Kept in memory: every restart starts from an empty database
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      timeout: 5s
+      retries: 20
+      interval: 3s
+      start_period: 20s
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment: *backend-env
+    ports:
+      - '3000:3000'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000/api/docs']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      <<: *backend-env
+      SEED_ADMIN_EMAIL: admin@test.local
+      SEED_ADMIN_PASSWORD: Admin1234!
+      SEED_DEMO_DATA: 'true'
+    command: node dist/database/seed.js
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: 'no'
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        API_URL: http://localhost:3000
+    ports:
+      - '80:80'
+    depends_on:
+      - backend
+
+  landing:
+    build:
+      context: ./landing-page
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_HOST_URL: http://localhost:3001
+        NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
+        NEXT_PUBLIC_SANITY_DATASET: ${NEXT_PUBLIC_SANITY_DATASET:-production}
+        NEXT_PUBLIC_API_URL: http://localhost:3000/api
+    ports:
+      - '3001:3001'

@@ -1,0 +1,14 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": { "channel": "chrome", "headless": true },
+    "contextOptions": {
+      "viewport": { "width": 1440, "height": 900 },
+      "locale": "pl-PL",
+      "timezoneId": "Europe/Warsaw"
+    }
+  },
+  "outputDir": ".playwright-cli",
+  "console": { "level": "warning" },
+  "timeouts": { "action": 5000, "navigation": 30000 }
+}
