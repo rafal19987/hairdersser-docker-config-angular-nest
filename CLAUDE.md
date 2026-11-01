@@ -49,6 +49,18 @@ npx playwright test --headed                   # watch it in a browser window
 
 Each run creates its own client with a unique email, so it doesn't need a reset first.
 
+# Staging server
+
+`deploy/staging/` holds the stack of the public test server and the scripts that set it up. The user runs commands on
+the server; Claude prepares them and doesn't log in there.
+
+- The `Deploy staging` workflow builds the images from the submodule pointers on `master`, pushes them to
+  `ghcr.io/rafal19987/hairdresser-{backend,admin,website}` and runs `deploy.sh` on the server over SSH. It starts after
+  every submodule update, after a change in `deploy/staging/`, and by hand.
+- Secrets live only on the server in `/opt/hairdresser/.env`; GitHub holds the domain, the host and the deploy key.
+- Website at `https://<domain>`, admin at `https://admin.<domain>`, API at `https://api.<domain>`. Portainer
+  (`127.0.0.1:9443`) and Mailpit (`127.0.0.1:8025`) are reachable only through an SSH tunnel.
+
 # Branches and pull requests
 
 `master` and `develop` are protected by GitHub rulesets: a direct push is rejected, every change goes through a pull
