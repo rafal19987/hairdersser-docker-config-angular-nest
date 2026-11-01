@@ -1,6 +1,6 @@
 name: Deploy staging
 
-# Builds the three apps from the submodule pointers on master, pushes the images to ghcr.io
+# Builds the apps whose submodule pointer on master has no image yet, pushes the images to ghcr.io
 # and restarts the staging server. Runs after every pointer update (an app merged to develop),
 # after a change to the deployment files, and by hand. Skipped until STAGING_DOMAIN is set.
 on:
@@ -42,11 +42,12 @@ jobs:
               NEXT_PUBLIC_API_URL=https://api.${{ vars.STAGING_DOMAIN }}/api
               NEXT_PUBLIC_SANITY_PROJECT_ID=${{ vars.NEXT_PUBLIC_SANITY_PROJECT_ID }}
               NEXT_PUBLIC_SANITY_DATASET=${{ vars.NEXT_PUBLIC_SANITY_DATASET || 'production' }}
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: master
-          submodules: true
 
       - uses: docker/setup-buildx-action@v3
 
@@ -56,14 +57,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The tag names the app commit and the build args (the domain is baked into the admin and the website),
+      # so an image that already exists for them is reused instead of built again
+      - name: Look for an existing image
+        id: image
+        env:
+          CONTEXT: ${{ matrix.context }}
+          BUILD_ARGS: ${{ matrix.build-args }}
+        run: |
+          tag="$(git rev-parse --short=12 "HEAD:$CONTEXT")-$(printf '%s' "$BUILD_ARGS" | sha256sum | cut -c1-8)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if docker buildx imagetools inspect "$IMAGE:$tag" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Reusing $IMAGE:$tag" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Point staging at the existing image
+        if: steps.image.outputs.exists == 'true'
+        run: docker buildx imagetools create --tag "$IMAGE:staging" "$IMAGE:${{ steps.image.outputs.tag }}"
+
+      - name: Check out the app
+        if: steps.image.outputs.exists != 'true'
+        run: git submodule update --init --depth 1 "${{ matrix.context }}"
+
       - uses: docker/build-push-action@v6
+        if: steps.image.outputs.exists != 'true'
         with:
           context: ${{ matrix.context }}
           push: true
           build-args: ${{ matrix.build-args }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:staging
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.IMAGE }}:staging
+            ${{ env.IMAGE }}:${{ steps.image.outputs.tag }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
