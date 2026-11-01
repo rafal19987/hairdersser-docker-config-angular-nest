@@ -8,5 +8,5 @@
 	branch = develop
 [submodule "landing-page"]
 	path = landing-page
-	url = https://github.com/rafal19987/Next14-SanityCMS.git
+	url = https://github.com/rafal19987/Hairdresser-landing-with-cms-Next-Sanity.git
 	branch = develop
